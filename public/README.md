@@ -4,7 +4,7 @@
 
 ## 🚀 在线体验
 
-访问部署在Vercel的在线版本：[听证会签到系统](https://your-domain.vercel.app)
+访问部署在Netlify的在线版本：[听证会签到系统](https://your-domain.netlify.app)
 
 ## 功能特性
 
@@ -38,7 +38,7 @@
 - **后端**: Vercel Serverless Functions
 - **地图服务**: 腾讯地图API
 - **存储**: Serverless数据存储
-- **部署**: Vercel + GitHub
+- **部署**: Netlify + GitHub
 - **UI框架**: 原生CSS（无框架依赖）
 
 ## 快速部署
@@ -46,15 +46,15 @@
 ### 1. Fork项目
 点击右上角 Fork 按钮复制项目到你的GitHub账户
 
-### 2. 部署到Vercel
-1. 访问 [vercel.com](https://vercel.com)
+### 2. 部署到Netlify
+1. 访问 [netlify.com](https://netlify.com)
 2. 使用GitHub账户登录
-3. 点击 "New Project"
+3. 点击 "New site from Git"
 4. 选择刚刚Fork的项目
-5. 点击 "Deploy"
+5. 保持默认设置，点击 "Deploy site"
 
 ### 3. 配置域名（可选）
-- 在Vercel面板中设置自定义域名
+- 在Netlify面板中设置自定义域名
 - 更新二维码链接
 
 ## 本地开发
@@ -87,16 +87,17 @@ npm start
 
 ```
 hearing-signin-system/
-├── api/
-│   ├── records.js         # 签到记录API
-│   └── stats.js          # 统计信息API
+├── netlify/
+│   └── functions/
+│       ├── records.js     # 签到记录API
+│       └── stats.js      # 统计信息API
 ├── public/
 │   ├── index.html        # 主页面
 │   ├── styles.css        # 样式文件
 │   ├── app.js           # 前端逻辑
 │   └── qrcode.html      # 二维码生成页面
 ├── server.js            # 本地开发服务器
-├── vercel.json          # Vercel配置文件
+├── netlify.toml         # Netlify配置文件
 ├── package.json         # 项目配置
 └── .gitignore          # Git忽略文件
 ```
@@ -137,7 +138,7 @@ GET /api/stats
 ### 更新二维码链接
 在 `public/qrcode.html` 中修改：
 ```javascript
-const qrUrl = 'https://your-domain.vercel.app';
+const qrUrl = 'https://your-domain.netlify.app';
 ```
 
 ### 腾讯地图API密钥
