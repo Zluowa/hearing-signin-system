@@ -1,0 +1,22 @@
+{
+  "name": "hearing-signin-system",
+  "version": "1.0.0",
+  "description": "不良贷款听证会签到系统 - 支持扫码签到、精确定位、签到记录管理",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "keywords": ["hearing", "signin", "mobile", "geolocation", "vercel"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

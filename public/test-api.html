@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>腾讯地图API测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>腾讯地图API测试工具</h1>
+    
+    <div class="test-section">
+        <h2>1. 测试坐标（北京天安门）</h2>
+        <button onclick="testDirectAPI()">直接测试API</button>
+        <button onclick="testJSONP()">测试JSONP调用</button>
+        <div id="test-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. API响应</h2>
+        <pre id="api-response">等待测试...</pre>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 环境检查</h2>
+        <div id="env-check"></div>
+    </div>
+
+    <script>
+        const API_KEY = 'PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK';
+        const testLat = 39.908823;
+        const testLng = 116.397470;
+        
+        // 环境检查
+        window.onload = function() {
+            const envCheck = document.getElementById('env-check');
+            envCheck.innerHTML = `
+                <p>当前协议: <span class="${location.protocol === 'https:' ? 'success' : 'warning'}">${location.protocol}</span></p>
+                <p>当前域名: ${location.hostname}</p>
+                <p>浏览器: ${navigator.userAgent.substring(0, 50)}...</p>
+            `;
+        };
+        
+        // 直接测试API（使用iframe方式避免跨域）
+        function testDirectAPI() {
+            const resultDiv = document.getElementById('test-result');
+            const responseDiv = document.getElementById('api-response');
+            
+            resultDiv.innerHTML = '正在测试API...';
+            
+            const url = `https://apis.map.qq.com/ws/geocoder/v1/?location=${testLat},${testLng}&key=${API_KEY}&output=json`;
+            
+            // 显示请求URL
+            responseDiv.innerHTML = `请求URL:\n${url}\n\n正在获取响应...`;
+            
+            // 尝试使用fetch（可能会有CORS问题）
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    resultDiv.innerHTML = '<span class="success">✓ API请求成功</span>';
+                    responseDiv.innerHTML = `请求URL:\n${url}\n\n响应:\n${JSON.stringify(data, null, 2)}`;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = '<span class="warning">⚠ 直接请求失败（预期的CORS错误），请使用JSONP方式</span>';
+                    responseDiv.innerHTML = `请求URL:\n${url}\n\n错误:\n${error.message}\n\n说明：这是正常的，WebService API需要使用JSONP方式调用`;
+                });
+        }
+        
+        // JSONP测试
+        function testJSONP() {
+            const resultDiv = document.getElementById('test-result');
+            const responseDiv = document.getElementById('api-response');
+            
+            resultDiv.innerHTML = '正在使用JSONP测试...';
+            
+            const callbackName = 'testCallback_' + Date.now();
+            const url = `https://apis.map.qq.com/ws/geocoder/v1/?location=${testLat},${testLng}&key=${API_KEY}&output=jsonp&callback=${callbackName}`;
+            
+            responseDiv.innerHTML = `JSONP请求URL:\n${url}\n\n等待响应...`;
+            
+            // 设置回调
+            window[callbackName] = function(data) {
+                console.log('API响应:', data);
+                
+                if (data.status === 0) {
+                    resultDiv.innerHTML = `
+                        <span class="success">✓ API调用成功!</span><br>
+                        地址: ${data.result.address}<br>
+                        ${data.result.formatted_addresses ? `推荐地址: ${data.result.formatted_addresses.recommend}` : ''}
+                    `;
+                    responseDiv.innerHTML = `JSONP请求URL:\n${url}\n\n响应:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <span class="error">✗ API返回错误</span><br>
+                        状态码: ${data.status}<br>
+                        消息: ${data.message}
+                    `;
+                    responseDiv.innerHTML = `JSONP请求URL:\n${url}\n\n错误响应:\n${JSON.stringify(data, null, 2)}`;
+                }
+                
+                // 清理
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+            
+            // 创建script标签
+            const script = document.createElement('script');
+            script.src = url;
+            script.onerror = function() {
+                resultDiv.innerHTML = '<span class="error">✗ JSONP请求失败，可能是网络问题或API Key无效</span>';
+                responseDiv.innerHTML += '\n\nJSONP请求失败';
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+            
+            document.body.appendChild(script);
+        }
+    </script>
+</body>
+</html> 

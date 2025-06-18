@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>定位功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .result {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            background: #f5f5f5;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>定位功能测试</h1>
+    
+    <button onclick="testBrowserLocation()">测试浏览器原生定位</button>
+    <button onclick="testTencentLocation()">测试腾讯地图定位</button>
+    <button onclick="checkPermission()">检查定位权限</button>
+    
+    <div id="result" class="result">
+        <h3>测试结果：</h3>
+        <div id="output">等待测试...</div>
+    </div>
+
+    <!-- 腾讯地图JavaScript API -->
+    <script charset="utf-8" src="https://map.qq.com/api/gljs?v=1.exp&key=PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK&libraries=service"></script>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        // 测试浏览器原生定位
+        function testBrowserLocation() {
+            output.innerHTML = '正在获取浏览器定位...';
+            
+            if (!navigator.geolocation) {
+                output.innerHTML = '<span class="error">浏览器不支持定位功能！</span>';
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    output.innerHTML = `
+                        <span class="success">浏览器定位成功！</span><br>
+                        纬度：${position.coords.latitude}<br>
+                        经度：${position.coords.longitude}<br>
+                        精度：${position.coords.accuracy} 米<br>
+                        时间：${new Date(position.timestamp).toLocaleString()}
+                    `;
+                },
+                (error) => {
+                    let errorMsg = '';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = '定位权限被拒绝';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = '位置信息不可用';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = '定位请求超时';
+                            break;
+                        default:
+                            errorMsg = '未知错误';
+                    }
+                    output.innerHTML = `<span class="error">定位失败：${errorMsg}<br>错误代码：${error.code}<br>错误信息：${error.message}</span>`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+        
+                // 测试腾讯地图JavaScript定位
+        function testTencentLocation() {
+            output.innerHTML = '正在检查腾讯地图API...';
+            
+            // 检查API是否加载
+            if (typeof qq === 'undefined') {
+                output.innerHTML = '<span class="error">腾讯地图API未加载！</span>';
+                return;
+            }
+            
+            if (!qq.maps || !qq.maps.Geolocation) {
+                output.innerHTML = '<span class="error">腾讯地图定位服务不可用！</span>';
+                return;
+            }
+            
+            output.innerHTML = '正在使用腾讯地图高精度定位...';
+            
+            try {
+                const geolocation = new qq.maps.Geolocation("PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK", "test");
+                
+                geolocation.getLocation(
+                    (position) => {
+                        console.log('腾讯地图定位响应:', position);
+                        
+                        let html = `<span class="success">腾讯地图定位成功！</span><br>`;
+                        html += `<strong>纬度：</strong>${position.lat}<br>`;
+                        html += `<strong>经度：</strong>${position.lng}<br>`;
+                        
+                        if (position.city) {
+                            html += `<strong>城市：</strong>${position.city}<br>`;
+                        }
+                        if (position.district) {
+                            html += `<strong>区域：</strong>${position.district}<br>`;
+                        }
+                        if (position.addr) {
+                            html += `<strong>地址：</strong>${position.addr}<br>`;
+                        }
+                        if (position.accuracy) {
+                            html += `<strong>精度：</strong>${position.accuracy} 米<br>`;
+                        }
+                        
+                        html += '<br><strong>定位详情：</strong><br>';
+                        html += '<pre>' + JSON.stringify(position, null, 2) + '</pre>';
+                        
+                        output.innerHTML = html;
+                        
+                        // 如果没有返回地址，调用逆地址解析
+                        if (!position.addr && position.lat && position.lng) {
+                            output.innerHTML += '<br><span>地址信息缺失，正在进行逆地址解析...</span>';
+                            testReverseGeocode(position.lat, position.lng);
+                        }
+                    },
+                    (error) => {
+                        console.error('腾讯地图定位失败:', error);
+                        output.innerHTML = `<span class="error">腾讯地图定位失败！<br>错误信息：${error.message || JSON.stringify(error)}</span>`;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 0,
+                        failTipFlag: true,
+                        coordType: 1
+                    }
+                );
+            } catch (e) {
+                output.innerHTML = `<span class="error">调用腾讯地图API失败！<br>错误：${e.message}</span>`;
+            }
+        }
+        
+        // 测试逆地址解析
+        function testReverseGeocode(lat, lng) {
+            const script = document.createElement('script');
+            const callbackName = 'reverseCallback_' + Date.now();
+            
+            window[callbackName] = function(data) {
+                if (data.status === 0 && data.result) {
+                    let html = '<br><span class="success">逆地址解析成功：</span><br>';
+                    html += `<strong>地址：</strong>${data.result.address}<br>`;
+                    if (data.result.formatted_addresses && data.result.formatted_addresses.recommend) {
+                        html += `<strong>推荐地址：</strong>${data.result.formatted_addresses.recommend}<br>`;
+                    }
+                    document.getElementById('output').innerHTML += html;
+                }
+                document.body.removeChild(script);
+                delete window[callbackName];
+            };
+            
+            const url = `https://apis.map.qq.com/ws/geocoder/v1/?location=${lat},${lng}&key=PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK&output=jsonp&callback=${callbackName}`;
+            script.src = url;
+            document.body.appendChild(script);
+        }
+        
+        // 检查定位权限
+        function checkPermission() {
+            output.innerHTML = '正在检查定位权限...';
+            
+            if ('permissions' in navigator) {
+                navigator.permissions.query({name: 'geolocation'}).then(result => {
+                    let status = '';
+                    switch(result.state) {
+                        case 'granted':
+                            status = '<span class="success">已授权</span>';
+                            break;
+                        case 'denied':
+                            status = '<span class="error">已拒绝</span>';
+                            break;
+                        case 'prompt':
+                            status = '未决定（将在使用时询问）';
+                            break;
+                    }
+                    output.innerHTML = `定位权限状态：${status}`;
+                }).catch(err => {
+                    output.innerHTML = `<span class="error">无法查询权限状态：${err.message}</span>`;
+                });
+            } else {
+                output.innerHTML = '浏览器不支持权限查询API';
+            }
+        }
+        
+        // 页面加载时显示环境信息
+        window.onload = function() {
+            const info = `
+                <h4>环境信息：</h4>
+                协议：${location.protocol}<br>
+                主机：${location.host}<br>
+                浏览器定位支持：${navigator.geolocation ? '✓' : '✗'}<br>
+                腾讯地图API：${typeof qq !== 'undefined' ? '✓ 已加载' : '✗ 未加载'}<br>
+                腾讯地图定位服务：${(typeof qq !== 'undefined' && qq.maps && qq.maps.Geolocation) ? '✓ 可用' : '✗ 不可用'}<br>
+                用户代理：${navigator.userAgent}
+            `;
+            output.innerHTML += info;
+        };
+    </script>
+</body>
+</html>

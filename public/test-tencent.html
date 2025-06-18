@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>腾讯地图定位专项测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #3A7BC8;
+        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>腾讯地图定位专项测试</h1>
+    
+    <div class="test-section">
+        <h2>1. API加载状态检查</h2>
+        <button onclick="checkAPIStatus()">检查API状态</button>
+        <div id="api-status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 定位测试</h2>
+        <button onclick="testMethod1()">方法1: 腾讯地图JS API</button>
+        <button onclick="testMethod2()">方法2: 腾讯定位组件</button>
+        <button onclick="testMethod3()">方法3: H5定位API</button>
+        <div id="location-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 控制台日志</h2>
+        <div id="console-log" class="log"></div>
+    </div>
+
+    <!-- 方法1: 腾讯地图JavaScript API -->
+    <script charset="utf-8" src="https://map.qq.com/api/gljs?v=1.exp&key=PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK&libraries=service"></script>
+    
+    <!-- 方法2: 腾讯定位组件 -->
+    <script charset="utf-8" src="https://mapapi.qq.com/web/mapComponents/geoLocation/v/geolocation.min.js"></script>
+    
+    <script>
+        // 日志记录
+        const logDiv = document.getElementById('console-log');
+        function log(msg, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f00' : type === 'success' ? '#0f0' : '#fff';
+            logDiv.innerHTML += `<div style="color: ${color}">[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+
+        // 检查API状态
+        function checkAPIStatus() {
+            const statusDiv = document.getElementById('api-status');
+            let html = '<h3>API加载状态：</h3>';
+            
+            // 检查qq对象
+            if (typeof qq !== 'undefined') {
+                html += '<p class="success">✓ qq对象已加载</p>';
+                
+                // 检查qq.maps
+                if (qq.maps) {
+                    html += '<p class="success">✓ qq.maps已加载</p>';
+                    
+                    // 检查Geolocation
+                    if (qq.maps.Geolocation) {
+                        html += '<p class="success">✓ qq.maps.Geolocation可用</p>';
+                    } else {
+                        html += '<p class="error">✗ qq.maps.Geolocation不可用</p>';
+                    }
+                    
+                    // 列出所有可用的API
+                    html += '<p>可用的qq.maps对象：</p><pre>';
+                    for (let key in qq.maps) {
+                        if (qq.maps.hasOwnProperty(key)) {
+                            html += key + '\n';
+                        }
+                    }
+                    html += '</pre>';
+                } else {
+                    html += '<p class="error">✗ qq.maps未加载</p>';
+                }
+            } else {
+                html += '<p class="error">✗ qq对象未加载</p>';
+            }
+            
+            // 检查window上的对象
+            html += '<h4>Window对象检查：</h4>';
+            if (window.qq) {
+                html += '<p class="success">✓ window.qq存在</p>';
+            }
+            if (window.TMap) {
+                html += '<p class="success">✓ window.TMap存在</p>';
+            }
+            
+            statusDiv.innerHTML = html;
+        }
+
+        // 方法1: 使用腾讯地图JS API
+        function testMethod1() {
+            log('开始测试方法1: 腾讯地图JS API');
+            const resultDiv = document.getElementById('location-result');
+            resultDiv.innerHTML = '<p>正在使用腾讯地图JS API定位...</p>';
+            
+            try {
+                if (typeof qq === 'undefined' || !qq.maps || !qq.maps.Geolocation) {
+                    throw new Error('腾讯地图API未加载');
+                }
+                
+                const geolocation = new qq.maps.Geolocation("PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK", "test");
+                log('Geolocation对象创建成功');
+                
+                geolocation.getLocation(
+                    (position) => {
+                        log('定位成功', 'success');
+                        resultDiv.innerHTML = `
+                            <h3 class="success">定位成功！</h3>
+                            <p><strong>纬度：</strong>${position.lat}</p>
+                            <p><strong>经度：</strong>${position.lng}</p>
+                            <p><strong>精度：</strong>${position.accuracy || '未知'} 米</p>
+                            <p><strong>地址：</strong>${position.addr || '无'}</p>
+                            <p><strong>城市：</strong>${position.city || '未知'}</p>
+                            <p><strong>区域：</strong>${position.district || '未知'}</p>
+                            <pre>${JSON.stringify(position, null, 2)}</pre>
+                        `;
+                    },
+                    (error) => {
+                        log('定位失败: ' + JSON.stringify(error), 'error');
+                        resultDiv.innerHTML = `<p class="error">定位失败：${error.message || JSON.stringify(error)}</p>`;
+                    },
+                    {
+                        timeout: 10000,
+                        enableHighAccuracy: true,
+                        maximumAge: 0
+                    }
+                );
+            } catch (e) {
+                log('创建Geolocation对象失败: ' + e.message, 'error');
+                resultDiv.innerHTML = `<p class="error">错误：${e.message}</p>`;
+            }
+        }
+
+        // 方法2: 使用腾讯定位组件
+        function testMethod2() {
+            log('开始测试方法2: 腾讯定位组件');
+            const resultDiv = document.getElementById('location-result');
+            resultDiv.innerHTML = '<p>正在使用腾讯定位组件...</p>';
+            
+            try {
+                // 设置配置
+                window._geolocationOptions = {
+                    key: "PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK",
+                    referer: "test"
+                };
+                
+                const geolocation = new qq.maps.Geolocation();
+                log('定位组件创建成功');
+                
+                geolocation.getLocation(
+                    (position) => {
+                        log('定位成功', 'success');
+                        resultDiv.innerHTML = `
+                            <h3 class="success">定位成功！</h3>
+                            <p><strong>纬度：</strong>${position.lat}</p>
+                            <p><strong>经度：</strong>${position.lng}</p>
+                            <p><strong>精度：</strong>${position.accuracy || '未知'} 米</p>
+                            <p><strong>地址：</strong>${position.addr || '无'}</p>
+                            <p><strong>城市：</strong>${position.city || '未知'}</p>
+                            <pre>${JSON.stringify(position, null, 2)}</pre>
+                        `;
+                    },
+                    (error) => {
+                        log('定位失败: ' + JSON.stringify(error), 'error');
+                        resultDiv.innerHTML = `<p class="error">定位失败：${error.message || JSON.stringify(error)}</p>`;
+                    },
+                    {
+                        timeout: 10000,
+                        enableHighAccuracy: true
+                    }
+                );
+            } catch (e) {
+                log('使用定位组件失败: ' + e.message, 'error');
+                resultDiv.innerHTML = `<p class="error">错误：${e.message}</p>`;
+            }
+        }
+
+        // 方法3: H5定位 + 腾讯逆地址解析
+        function testMethod3() {
+            log('开始测试方法3: H5定位 + 腾讯逆地址解析');
+            const resultDiv = document.getElementById('location-result');
+            resultDiv.innerHTML = '<p>正在使用H5定位...</p>';
+            
+            if (!navigator.geolocation) {
+                resultDiv.innerHTML = '<p class="error">浏览器不支持定位</p>';
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    log('H5定位成功', 'success');
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    resultDiv.innerHTML = `
+                        <h3 class="success">H5定位成功！</h3>
+                        <p><strong>纬度：</strong>${lat}</p>
+                        <p><strong>经度：</strong>${lng}</p>
+                        <p><strong>精度：</strong>${position.coords.accuracy} 米</p>
+                        <p>正在获取地址信息...</p>
+                    `;
+                    
+                    // 调用腾讯逆地址解析
+                    reverseGeocode(lat, lng);
+                },
+                (error) => {
+                    log('H5定位失败: ' + error.message, 'error');
+                    resultDiv.innerHTML = `<p class="error">定位失败：${error.message}</p>`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // 逆地址解析
+        function reverseGeocode(lat, lng) {
+            const script = document.createElement('script');
+            const callbackName = 'geocoderCallback_' + Date.now();
+            
+            window[callbackName] = function(data) {
+                log('逆地址解析响应: ' + JSON.stringify(data));
+                const resultDiv = document.getElementById('location-result');
+                
+                if (data.status === 0 && data.result) {
+                    let html = resultDiv.innerHTML;
+                    html += `<p><strong>地址：</strong>${data.result.address}</p>`;
+                    if (data.result.formatted_addresses && data.result.formatted_addresses.recommend) {
+                        html += `<p><strong>推荐地址：</strong>${data.result.formatted_addresses.recommend}</p>`;
+                    }
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML += `<p class="error">逆地址解析失败</p>`;
+                }
+                
+                document.body.removeChild(script);
+                delete window[callbackName];
+            };
+            
+            const url = `https://apis.map.qq.com/ws/geocoder/v1/?location=${lat},${lng}&key=PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK&output=jsonp&callback=${callbackName}`;
+            script.src = url;
+            document.body.appendChild(script);
+        }
+
+        // 页面加载时自动检查
+        window.onload = function() {
+            log('页面加载完成');
+            setTimeout(() => {
+                checkAPIStatus();
+            }, 1000);
+        };
+    </script>
+</body>
+</html> 

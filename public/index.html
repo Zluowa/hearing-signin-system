@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>不良贷款听证会签到</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- 腾讯地图定位组件 -->
+    <script charset="utf-8" src="https://mapapi.qq.com/web/mapComponents/geoLocation/v/geolocation.min.js"></script>
+    <script>
+        // 在页面加载时初始化腾讯定位组件
+        window._geolocationOptions = {
+            key: "PK3BZ-RZWEW-3HBRI-YBEZF-R6HJE-DKBIK",
+            referer: "meeting-signin"
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1 class="title">不良贷款听证会</h1>
+        </header>
+
+        <!-- 签到表单 -->
+        <div class="form-section" id="signInForm">
+            <div class="form-title">
+                <span class="blue-text">听证会签到</span>
+            </div>
+
+            <form id="checkInForm">
+                <div class="form-group">
+                    <label for="name">姓名<span class="required">*</span></label>
+                    <input type="text" id="name" placeholder="必填项，请输入" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">手机号<span class="required">*</span></label>
+                    <input type="tel" id="phone" placeholder="必填项，点击授权手机号" maxlength="11" required>
+                </div>
+
+                <div class="form-group">
+                    <label>定位</label>
+                    <div class="location-box" id="locationBox">
+                        <span class="location-icon">📍</span>
+                        <span id="locationText">点击获取位置信息</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">签到</button>
+            </form>
+
+            <div class="notice">
+                提交即授权表单收集你填写的信息。<a href="#" class="privacy-link">查看详情</a>
+            </div>
+        </div>
+
+        <!-- 底部标签 -->
+        <div class="bottom-tabs">
+            <div class="tab active" id="recordsTab">
+                <span>签到记录</span>
+            </div>
+            <div class="tab" id="myRecordsTab">
+                <span>我的签到记录</span>
+            </div>
+        </div>
+
+        <!-- 签到记录列表 -->
+        <div class="records-section" id="recordsSection" style="display: none;">
+            <div class="records-header">
+                <h2>签到记录</h2>
+                <div class="records-stats">
+                    <span>已签到: <span id="signedCount">0</span></span>
+                    <span>未签到: <span id="unsignedCount">0</span></span>
+                </div>
+            </div>
+            <div class="records-list" id="recordsList"></div>
+            <button class="back-btn" id="backBtn">返回签到</button>
+        </div>
+    </div>
+
+    <!-- 提示消息 -->
+    <div class="toast" id="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
