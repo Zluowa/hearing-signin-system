@@ -55,27 +55,167 @@
             </div>
         </div>
 
-        <!-- 底部标签 -->
-        <div class="bottom-tabs">
-            <div class="tab active" id="recordsTab">
-                <span>签到记录</span>
+        <!-- 新的底部记录区域 -->
+        <div class="bottom-records-section">
+            <!-- 底部标签 -->
+            <div class="bottom-tabs">
+                <div class="tab active" id="recordsTab">
+                    <span>签到记录</span>
+                </div>
+                <div class="tab" id="myRecordsTab">
+                    <span>我的签到记录</span>
+                </div>
             </div>
-            <div class="tab" id="myRecordsTab">
-                <span>我的签到记录</span>
+
+            <!-- 记录列表预览 -->
+            <div class="records-preview" id="recordsPreview">
+                <div class="record-item">
+                    <div class="record-content">
+                        <span class="record-bullet">•</span>
+                        <span class="record-time">今天 16:15</span>
+                        <span class="record-text">链接了完成了会议签到</span>
+                    </div>
+                </div>
+                <div class="record-item">
+                    <div class="record-content">
+                        <span class="record-bullet">•</span>
+                        <span class="record-time">今天 15:17</span>
+                        <span class="record-text">树生完成了会议签到</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 查看全部按钮 -->
+            <div class="view-all-section">
+                <button class="view-all-btn" id="viewAllBtn">
+                    <span>全部<span id="totalRecordsCount">2</span>条</span>
+                    <span class="arrow">></span>
+                </button>
             </div>
         </div>
 
-        <!-- 签到记录列表 -->
-        <div class="records-section" id="recordsSection" style="display: none;">
-            <div class="records-header">
-                <h2>签到记录</h2>
-                <div class="records-stats">
-                    <span>已签到: <span id="signedCount">0</span></span>
-                    <span>未签到: <span id="unsignedCount">0</span></span>
+        <!-- 全部记录数据页面 -->
+        <div class="all-records-page" id="allRecordsPage" style="display: none;">
+            <div class="page-header">
+                <button class="back-arrow" id="backToMainBtn">‹</button>
+                <h2 class="page-title">全部记录数据</h2>
+                <div class="more-options">•••</div>
+            </div>
+
+            <!-- 视图切换标签 -->
+            <div class="view-tabs">
+                <div class="view-tab active" id="cardViewTab">卡片视图</div>
+                <div class="view-tab" id="tableViewTab">表格视图</div>
+                <div class="view-tab" id="printViewTab">打印视图</div>
+            </div>
+
+            <!-- 记录统计和操作 -->
+            <div class="records-controls">
+                <div class="records-count">共 <span id="allRecordsCount">2</span> 条</div>
+                <div class="controls-right">
+                    <button class="control-btn">🔍 搜索</button>
+                    <button class="control-btn">🔽 筛选</button>
+                    <button class="control-btn">📤 导出</button>
                 </div>
             </div>
-            <div class="records-list" id="recordsList"></div>
-            <button class="back-btn" id="backBtn">返回签到</button>
+
+            <!-- 卡片视图 -->
+            <div class="card-view" id="cardView">
+                <div class="record-card">
+                    <div class="card-time">今天 21:36</div>
+                    <div class="card-content">谢盛杨完成了会议签到</div>
+                    <div class="card-detail">部门：-</div>
+                    <div class="card-arrow">></div>
+                </div>
+                <div class="record-card">
+                    <div class="card-time">4月24日 17:08</div>
+                    <div class="card-content">张远完成了会议签到</div>
+                    <div class="card-detail">部门：市场部</div>
+                    <div class="card-arrow">></div>
+                </div>
+                <div class="no-more">没有更多了</div>
+            </div>
+
+            <!-- 表格视图 -->
+            <div class="table-view" id="tableView" style="display: none;">
+                <table class="records-table">
+                    <thead>
+                        <tr>
+                            <th>填表时间 🔽</th>
+                            <th>填表人 🔽</th>
+                            <th>姓名 🔽</th>
+                            <th>手机</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>2025-06-18<br>21:36</td>
+                            <td>谢盛杨</td>
+                            <td>谢盛杨</td>
+                            <td>1760</td>
+                        </tr>
+                        <tr>
+                            <td>2025-04-24<br>17:08</td>
+                            <td>张远</td>
+                            <td>张远</td>
+                            <td>1515</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="no-more">没有更多了</div>
+            </div>
+
+            <!-- 打印视图 -->
+            <div class="print-view" id="printView" style="display: none;">
+                <div class="print-header">
+                    <div class="print-logo">
+                        <div class="logo-icon">📋</div>
+                        <div class="logo-text">
+                            <div class="company-name">会议签到（体验码）</div>
+                            <div class="enterprise-label">企业名称</div>
+                        </div>
+                    </div>
+                    <div class="qr-code-mini">
+                        <div class="qr-placeholder">二维码</div>
+                        <div class="qr-label">扫码查看</div>
+                    </div>
+                </div>
+
+                <div class="print-table-container">
+                    <h3 class="print-title">会议签到（共2条）</h3>
+                    <table class="print-table">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>姓名</th>
+                                <th>手机号</th>
+                                <th>定位</th>
+                                <th>签名</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>张远</td>
+                                <td>15158300250</td>
+                                <td>已定位</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>谢盛杨</td>
+                                <td>17600260115</td>
+                                <td>已定位</td>
+                                <td></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="print-footer">
+                    <div class="footer-text">会议签到（体验码） 数据截止 2025-06-18 第 1 页</div>
+                </div>
+            </div>
         </div>
     </div>
 

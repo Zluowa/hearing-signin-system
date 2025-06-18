@@ -35,6 +35,9 @@ document.addEventListener('DOMContentLoaded', function() {
         initGeolocation();
         initEventListeners();
         loadRecords();
+        
+        // 初始化底部预览区域
+        updateRecordsPreview();
     }, 1000);
 });
 
@@ -47,11 +50,19 @@ function initEventListeners() {
     document.getElementById('locationBox').addEventListener('click', getLocation);
     
     // 底部标签切换
-    document.getElementById('recordsTab').addEventListener('click', () => showView('records'));
-    document.getElementById('myRecordsTab').addEventListener('click', () => showView('myrecords'));
+    document.getElementById('recordsTab').addEventListener('click', () => switchBottomTab('records'));
+    document.getElementById('myRecordsTab').addEventListener('click', () => switchBottomTab('myrecords'));
     
-    // 返回按钮
-    document.getElementById('backBtn').addEventListener('click', () => showView('signin'));
+    // 查看全部按钮
+    document.getElementById('viewAllBtn').addEventListener('click', showAllRecordsPage);
+    
+    // 全部记录页面的返回按钮
+    document.getElementById('backToMainBtn').addEventListener('click', hideAllRecordsPage);
+    
+    // 视图切换标签
+    document.getElementById('cardViewTab').addEventListener('click', () => switchView('card'));
+    document.getElementById('tableViewTab').addEventListener('click', () => switchView('table'));
+    document.getElementById('printViewTab').addEventListener('click', () => switchView('print'));
 }
 
 // 获取当前位置
@@ -439,6 +450,9 @@ async function handleSubmit(e) {
     const saveSuccess = await saveRecord(record);
     
     if (saveSuccess) {
+        // 保存用户手机号用于"我的记录"功能
+        saveUserPhone(phone);
+        
         // 重置表单
         document.getElementById('checkInForm').reset();
         currentLocation = null;
@@ -501,7 +515,11 @@ function saveRecordLocally(record) {
     }
     
     localStorage.setItem('signInRecords', JSON.stringify(records));
-    loadRecords(); // 更新显示
+    
+    // 更新全局记录并刷新界面
+    window.allRecords = records;
+    updateRecordCounts(records);
+    refreshBottomPreview();
 }
 
 // 从服务器加载签到记录
@@ -512,17 +530,16 @@ async function loadRecords() {
         
         if (result.success) {
             const records = result.data;
-            const signedCount = document.getElementById('signedCount');
-            const unsignedCount = document.getElementById('unsignedCount');
-            
-            signedCount.textContent = records.length;
-            
-            // 这里可以添加预设的参会人员名单来计算未签到人数
-            // 暂时设置为0
-            unsignedCount.textContent = '0';
             
             // 将记录存储到全局变量供其他函数使用
             window.allRecords = records;
+            
+            // 更新记录总数显示
+            updateRecordCounts(records);
+            
+            // 刷新底部预览区域
+            refreshBottomPreview();
+            
         } else {
             console.error('加载签到记录失败:', result.message);
             loadRecordsLocally(); // 降级到本地存储
@@ -533,15 +550,54 @@ async function loadRecords() {
     }
 }
 
+// 更新记录计数显示
+function updateRecordCounts(records) {
+    // 更新各种计数显示
+    const elements = [
+        'signedCount',
+        'totalRecordsCount',
+        'allRecordsCount'
+    ];
+    
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = records.length;
+        }
+    });
+    
+    // 这里可以添加预设的参会人员名单来计算未签到人数
+    const unsignedElement = document.getElementById('unsignedCount');
+    if (unsignedElement) {
+        unsignedElement.textContent = '0';
+    }
+}
+
+// 刷新底部预览区域
+function refreshBottomPreview() {
+    const recordsTab = document.getElementById('recordsTab');
+    const myRecordsTab = document.getElementById('myRecordsTab');
+    
+    // 根据当前激活的标签刷新对应的预览
+    if (recordsTab && recordsTab.classList.contains('active')) {
+        updateRecordsPreview();
+    } else if (myRecordsTab && myRecordsTab.classList.contains('active')) {
+        updateMyRecordsPreview();
+    }
+}
+
 // 本地加载备用方案
 function loadRecordsLocally() {
     const records = JSON.parse(localStorage.getItem('signInRecords') || '[]');
-    const signedCount = document.getElementById('signedCount');
-    const unsignedCount = document.getElementById('unsignedCount');
     
-    signedCount.textContent = records.length;
-    unsignedCount.textContent = '0';
+    // 将记录存储到全局变量
     window.allRecords = records;
+    
+    // 更新记录总数显示
+    updateRecordCounts(records);
+    
+    // 刷新底部预览区域
+    refreshBottomPreview();
 }
 
 // 显示签到记录列表
@@ -686,4 +742,351 @@ const meetingId = getUrlParam('meeting');
 if (meetingId) {
     // 可以根据听证会ID加载特定的听证会信息
     console.log('通过扫码进入，听证会ID:', meetingId);
+}
+
+// 新增功能函数
+
+// 切换底部标签
+function switchBottomTab(tab) {
+    const recordsTab = document.getElementById('recordsTab');
+    const myRecordsTab = document.getElementById('myRecordsTab');
+    const recordsPreview = document.getElementById('recordsPreview');
+    
+    // 更新标签状态
+    if (tab === 'records') {
+        recordsTab.classList.add('active');
+        myRecordsTab.classList.remove('active');
+        updateRecordsPreview();
+    } else if (tab === 'myrecords') {
+        recordsTab.classList.remove('active');
+        myRecordsTab.classList.add('active');
+        updateMyRecordsPreview();
+    }
+}
+
+// 更新记录预览
+function updateRecordsPreview() {
+    const recordsPreview = document.getElementById('recordsPreview');
+    const records = window.allRecords || [];
+    
+    if (records.length === 0) {
+        recordsPreview.innerHTML = `
+            <div class="record-item">
+                <div class="record-content">
+                    <span class="record-text" style="color: #999;">暂无签到记录</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // 按时间倒序排列，只显示最近的2条
+    const sortedRecords = records.sort((a, b) => new Date(b.signInTime) - new Date(a.signInTime));
+    const recentRecords = sortedRecords.slice(0, 2);
+    
+    let html = '';
+    recentRecords.forEach(record => {
+        const timeStr = formatTime(record.signInTime);
+        html += `
+            <div class="record-item">
+                <div class="record-content">
+                    <span class="record-bullet">•</span>
+                    <span class="record-time">${timeStr}</span>
+                    <span class="record-text">${record.name}完成了会议签到</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    recordsPreview.innerHTML = html;
+}
+
+// 更新我的记录预览
+function updateMyRecordsPreview() {
+    const recordsPreview = document.getElementById('recordsPreview');
+    const userPhone = localStorage.getItem('userPhone');
+    const records = window.allRecords || [];
+    
+    if (!userPhone) {
+        recordsPreview.innerHTML = `
+            <div class="record-item">
+                <div class="record-content">
+                    <span class="record-text" style="color: #999;">请先完成签到</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // 筛选当前用户的记录
+    const myRecords = records.filter(record => record.phone === userPhone);
+    
+    if (myRecords.length === 0) {
+        recordsPreview.innerHTML = `
+            <div class="record-item">
+                <div class="record-content">
+                    <span class="record-text" style="color: #999;">暂无签到记录</span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // 按时间倒序排列，只显示最近的2条
+    const sortedMyRecords = myRecords.sort((a, b) => new Date(b.signInTime) - new Date(a.signInTime));
+    const recentMyRecords = sortedMyRecords.slice(0, 2);
+    
+    let html = '';
+    recentMyRecords.forEach(record => {
+        const timeStr = formatTime(record.signInTime);
+        html += `
+            <div class="record-item">
+                <div class="record-content">
+                    <span class="record-bullet">•</span>
+                    <span class="record-time">${timeStr}</span>
+                    <span class="record-text">您完成了会议签到</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    recordsPreview.innerHTML = html;
+}
+
+// 显示全部记录页面
+function showAllRecordsPage() {
+    const allRecordsPage = document.getElementById('allRecordsPage');
+    allRecordsPage.style.display = 'block';
+    
+    // 加载实际数据
+    loadAllRecordsData();
+}
+
+// 隐藏全部记录页面
+function hideAllRecordsPage() {
+    const allRecordsPage = document.getElementById('allRecordsPage');
+    allRecordsPage.style.display = 'none';
+}
+
+// 切换视图
+function switchView(viewType) {
+    // 更新标签状态
+    document.querySelectorAll('.view-tab').forEach(tab => tab.classList.remove('active'));
+    document.getElementById(viewType + 'ViewTab').classList.add('active');
+    
+    // 显示对应视图
+    const cardView = document.getElementById('cardView');
+    const tableView = document.getElementById('tableView');
+    const printView = document.getElementById('printView');
+    
+    cardView.style.display = viewType === 'card' ? 'block' : 'none';
+    tableView.style.display = viewType === 'table' ? 'block' : 'none';
+    printView.style.display = viewType === 'print' ? 'block' : 'none';
+}
+
+// 加载全部记录数据
+async function loadAllRecordsData() {
+    try {
+        // 使用现有的全局记录数据
+        const records = window.allRecords || [];
+        
+        // 如果没有数据，先加载
+        if (records.length === 0) {
+            await loadRecords();
+        }
+        
+        updateAllViewsData(window.allRecords || []);
+        
+    } catch (error) {
+        console.error('加载记录数据失败:', error);
+        showToast('加载数据失败');
+    }
+}
+
+// 更新所有视图的数据
+function updateAllViewsData(records) {
+    // 更新记录总数
+    document.getElementById('allRecordsCount').textContent = records.length;
+    document.getElementById('totalRecordsCount').textContent = records.length;
+    
+    // 更新卡片视图
+    updateCardView(records);
+    
+    // 更新表格视图
+    updateTableView(records);
+    
+    // 更新打印视图
+    updatePrintView(records);
+}
+
+// 更新卡片视图
+function updateCardView(records) {
+    const cardView = document.getElementById('cardView');
+    
+    if (records.length === 0) {
+        cardView.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #999;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
+                <div>暂无签到记录</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // 按时间倒序排列
+    const sortedRecords = records.sort((a, b) => new Date(b.signInTime) - new Date(a.signInTime));
+    
+    let html = '';
+    sortedRecords.forEach(record => {
+        const timeStr = formatTime(record.signInTime);
+        const location = record.location ? (record.location.address || record.location) : '未知位置';
+        
+        html += `
+            <div class="record-card" onclick="showRecordDetail('${record.id}')">
+                <div class="card-time">${timeStr}</div>
+                <div class="card-content">
+                    <div class="main-text">${record.name}完成了会议签到</div>
+                    <div class="card-detail">手机号：${record.phone} | 位置：${location}</div>
+                </div>
+                <div class="card-arrow">></div>
+            </div>
+        `;
+    });
+    
+    html += '<div class="no-more">没有更多了</div>';
+    cardView.innerHTML = html;
+}
+
+// 更新表格视图
+function updateTableView(records) {
+    const tableBody = document.querySelector('.records-table tbody');
+    
+    if (records.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 40px; color: #999;">
+                    暂无签到记录
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    // 按时间倒序排列
+    const sortedRecords = records.sort((a, b) => new Date(b.signInTime) - new Date(a.signInTime));
+    
+    let html = '';
+    sortedRecords.forEach(record => {
+        const signInDate = new Date(record.signInTime);
+        const dateStr = signInDate.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        const timeStr = signInDate.toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        html += `
+            <tr onclick="showRecordDetail('${record.id}')" style="cursor: pointer;">
+                <td>${dateStr}<br/>${timeStr}</td>
+                <td>${record.name}</td>
+                <td>${record.name}</td>
+                <td>${record.phone.substring(0, 4)}****${record.phone.substring(7)}</td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+// 更新打印视图
+function updatePrintView(records) {
+    const printTableBody = document.querySelector('.print-table tbody');
+    const printTitle = document.querySelector('.print-title');
+    
+    printTitle.textContent = `不良贷款听证会签到（共${records.length}条）`;
+    
+    if (records.length === 0) {
+        printTableBody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 40px; color: #999;">
+                    暂无签到记录
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    // 按时间正序排列（打印视图按签到顺序）
+    const sortedRecords = records.sort((a, b) => new Date(a.signInTime) - new Date(b.signInTime));
+    
+    let html = '';
+    sortedRecords.forEach((record, index) => {
+        const location = record.location ? (record.location.address || '已定位') : '未定位';
+        html += `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${record.name}</td>
+                <td>${record.phone}</td>
+                <td>${location}</td>
+                <td style="width: 80px; height: 30px; border: 1px solid #ddd;"></td>
+            </tr>
+        `;
+    });
+    
+    printTableBody.innerHTML = html;
+    
+    // 更新页脚信息
+    const footerText = document.querySelector('.footer-text');
+    if (footerText) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('zh-CN');
+        footerText.textContent = `不良贷款听证会签到 数据截止 ${dateStr} 第 1 页`;
+    }
+}
+
+// 格式化时间显示
+function formatTime(timeStr) {
+    const now = new Date();
+    const time = new Date(timeStr);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const recordDate = new Date(time.getFullYear(), time.getMonth(), time.getDate());
+    
+    if (recordDate.getTime() === today.getTime()) {
+        return `今天 ${time.getHours()}:${time.getMinutes().toString().padStart(2, '0')}`;
+    } else {
+        return `${time.getMonth() + 1}月${time.getDate()}日 ${time.getHours()}:${time.getMinutes().toString().padStart(2, '0')}`;
+    }
+}
+
+// 显示记录详情（暂时用toast显示，后续可以扩展为详情页面）
+function showRecordDetail(recordId) {
+    const records = window.allRecords || [];
+    const record = records.find(r => r.id === recordId);
+    
+    if (!record) {
+        showToast('记录不存在');
+        return;
+    }
+    
+    const signInDate = new Date(record.signInTime);
+    const timeStr = signInDate.toLocaleString('zh-CN');
+    const location = record.location ? (record.location.address || '未知位置') : '未知位置';
+    
+    const detail = `
+姓名：${record.name}
+手机号：${record.phone}
+签到时间：${timeStr}
+签到位置：${location}
+    `.trim();
+    
+    // 暂时用alert显示详情，后续可以改为模态框
+    alert(detail);
+}
+
+// 签到成功后保存用户手机号，用于"我的记录"功能
+function saveUserPhone(phone) {
+    localStorage.setItem('userPhone', phone);
 }
