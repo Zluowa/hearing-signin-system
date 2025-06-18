@@ -972,6 +972,9 @@ function updateTableView(records) {
         return;
     }
     
+    // 存储当前数据以供排序和导出使用
+    window.currentTableRecords = records;
+    
     // 按时间倒序排列
     const sortedRecords = records.sort((a, b) => new Date(b.signInTime) - new Date(a.signInTime));
     
@@ -982,18 +985,25 @@ function updateTableView(records) {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit'
-        });
+        }).replace(/\//g, '-');
         const timeStr = signInDate.toLocaleTimeString('zh-CN', {
             hour: '2-digit',
             minute: '2-digit'
         });
         
+        const location = record.location ? 
+            (record.location.address || record.location.name || '已定位') : 
+            '未定位';
+        
         html += `
-            <tr onclick="showRecordDetail('${record.id}')" style="cursor: pointer;">
-                <td>${dateStr}<br/>${timeStr}</td>
+            <tr onclick="showRecordDetail('${record.id}')">
+                <td>
+                    <div>${dateStr}</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 2px;">${timeStr}</div>
+                </td>
                 <td>${record.name}</td>
                 <td>${record.name}</td>
-                <td>${record.phone.substring(0, 4)}****${record.phone.substring(7)}</td>
+                <td>${record.phone}</td>
             </tr>
         `;
     });
@@ -1007,6 +1017,9 @@ function updatePrintView(records) {
     const printTitle = document.querySelector('.print-title');
     
     printTitle.textContent = `不良贷款听证会签到（共${records.length}条）`;
+    
+    // 生成打印视图的QR码
+    generatePrintQRCode();
     
     if (records.length === 0) {
         printTableBody.innerHTML = `
@@ -1024,13 +1037,15 @@ function updatePrintView(records) {
     
     let html = '';
     sortedRecords.forEach((record, index) => {
-        const location = record.location ? (record.location.address || '已定位') : '未定位';
+        const location = record.location ? 
+            (record.location.address || record.location.name || '已定位') : 
+            '未定位';
         html += `
             <tr>
                 <td>${index + 1}</td>
                 <td>${record.name}</td>
                 <td>${record.phone}</td>
-                <td>${location}</td>
+                <td>${location.length > 20 ? location.substring(0, 20) + '...' : location}</td>
                 <td style="width: 80px; height: 30px; border: 1px solid #ddd;"></td>
             </tr>
         `;
@@ -1045,6 +1060,36 @@ function updatePrintView(records) {
         const dateStr = now.toLocaleDateString('zh-CN');
         footerText.textContent = `不良贷款听证会签到 数据截止 ${dateStr} 第 1 页`;
     }
+}
+
+// 生成打印视图的QR码
+function generatePrintQRCode() {
+    const canvas = document.getElementById('printQRCode');
+    if (!canvas || !window.QRCode) return;
+    
+    const url = window.location.origin + window.location.pathname;
+    
+    QRCode.toCanvas(canvas, url, {
+        width: 60,
+        height: 60,
+        margin: 1,
+        color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+        }
+    }, function (error) {
+        if (error) {
+            console.error('QR码生成失败:', error);
+            // 如果生成失败，显示占位符
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, 60, 60);
+            ctx.fillStyle = '#999';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('二维码', 30, 35);
+        }
+    });
 }
 
 // 格式化时间显示
@@ -1090,3 +1135,224 @@ function showRecordDetail(recordId) {
 function saveUserPhone(phone) {
     localStorage.setItem('userPhone', phone);
 }
+
+// 导出功能
+function exportData() {
+    const currentView = document.querySelector('.view-tab.active').id;
+    
+    if (currentView === 'printViewTab') {
+        exportToPDF();
+    } else {
+        exportToExcel();
+    }
+}
+
+// 导出为Excel
+function exportToExcel() {
+    const records = window.currentTableRecords || window.allRecords || [];
+    
+    if (records.length === 0) {
+        showToast('暂无数据可导出');
+        return;
+    }
+    
+    // 准备数据
+    const data = [
+        ['序号', '姓名', '手机号', '签到时间', '位置信息']
+    ];
+    
+    records.forEach((record, index) => {
+        const signInDate = new Date(record.signInTime);
+        const timeStr = signInDate.toLocaleString('zh-CN');
+        const location = record.location ? 
+            (record.location.address || record.location.name || '已定位') : 
+            '未定位';
+        
+        data.push([
+            index + 1,
+            record.name,
+            record.phone,
+            timeStr,
+            location
+        ]);
+    });
+    
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    // 设置列宽
+    ws['!cols'] = [
+        { width: 8 },   // 序号
+        { width: 12 },  // 姓名
+        { width: 15 },  // 手机号
+        { width: 20 },  // 签到时间
+        { width: 30 }   // 位置信息
+    ];
+    
+    // 添加工作表
+    XLSX.utils.book_append_sheet(wb, ws, '会议签到');
+    
+    // 生成文件名
+    const now = new Date();
+    const fileName = `不良贷款听证会签到_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}.xlsx`;
+    
+    // 下载文件
+    XLSX.writeFile(wb, fileName);
+    showToast('Excel文件导出成功');
+}
+
+// 导出为PDF
+function exportToPDF() {
+    const printView = document.getElementById('printView');
+    
+    if (!printView) {
+        showToast('打印视图不可用');
+        return;
+    }
+    
+    showToast('正在生成PDF，请稍候...');
+    
+    // 临时显示打印视图以便截图
+    const originalDisplay = printView.style.display;
+    printView.style.display = 'block';
+    
+    html2canvas(printView, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+    }).then(canvas => {
+        // 恢复原始显示状态
+        printView.style.display = originalDisplay;
+        
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        
+        let position = 0;
+        
+        // 添加首页
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        // 如果内容超过一页，添加额外页面
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+        
+        // 生成文件名
+        const now = new Date();
+        const fileName = `不良贷款听证会签到_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}.pdf`;
+        
+        // 下载PDF
+        pdf.save(fileName);
+        showToast('PDF文件导出成功');
+        
+    }).catch(error => {
+        // 恢复原始显示状态
+        printView.style.display = originalDisplay;
+        console.error('PDF导出失败:', error);
+        showToast('PDF导出失败，请重试');
+    });
+}
+
+// 表格排序功能
+function sortTable(column) {
+    const records = window.currentTableRecords || [];
+    
+    if (records.length === 0) return;
+    
+    // 获取当前排序状态
+    const currentSortColumn = window.currentSortColumn || '';
+    const currentSortOrder = window.currentSortOrder || 'desc';
+    
+    // 确定新的排序顺序
+    let newSortOrder = 'desc';
+    if (currentSortColumn === column && currentSortOrder === 'desc') {
+        newSortOrder = 'asc';
+    }
+    
+    // 排序数据
+    const sortedRecords = [...records].sort((a, b) => {
+        let valueA, valueB;
+        
+        switch (column) {
+            case 'time':
+                valueA = new Date(a.signInTime);
+                valueB = new Date(b.signInTime);
+                break;
+            case 'submitter':
+            case 'name':
+                valueA = a.name.toLowerCase();
+                valueB = b.name.toLowerCase();
+                break;
+            default:
+                return 0;
+        }
+        
+        if (newSortOrder === 'asc') {
+            return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+        } else {
+            return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+        }
+    });
+    
+    // 保存排序状态
+    window.currentSortColumn = column;
+    window.currentSortOrder = newSortOrder;
+    
+    // 更新表格显示
+    updateTableView(sortedRecords);
+    
+    // 更新表头显示
+    updateTableHeaders(column, newSortOrder);
+}
+
+// 更新表头排序图标
+function updateTableHeaders(sortColumn, sortOrder) {
+    const headers = document.querySelectorAll('.records-table th.sortable');
+    
+    headers.forEach(header => {
+        const column = header.dataset.sort;
+        let text = header.textContent.replace(' 🔽', '').replace(' 🔼', '');
+        
+        if (column === sortColumn) {
+            text += sortOrder === 'desc' ? ' 🔽' : ' 🔼';
+        } else {
+            text += ' 🔽';
+        }
+        
+        header.textContent = text;
+    });
+}
+
+// 初始化导出和排序事件监听
+document.addEventListener('DOMContentLoaded', function() {
+    // 导出按钮事件
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportData);
+    }
+    
+    // 表格排序事件
+    const sortableHeaders = document.querySelectorAll('.records-table th.sortable');
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.dataset.sort;
+            sortTable(column);
+        });
+    });
+});

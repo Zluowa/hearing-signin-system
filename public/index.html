@@ -113,9 +113,9 @@
             <div class="records-controls">
                 <div class="records-count">共 <span id="allRecordsCount">2</span> 条</div>
                 <div class="controls-right">
-                    <button class="control-btn">🔍 搜索</button>
-                    <button class="control-btn">🔽 筛选</button>
-                    <button class="control-btn">📤 导出</button>
+                    <button class="control-btn" id="searchBtn">🔍 搜索</button>
+                    <button class="control-btn" id="filterBtn">🔽 筛选</button>
+                    <button class="control-btn" id="exportBtn">📤 导出</button>
                 </div>
             </div>
 
@@ -138,30 +138,21 @@
 
             <!-- 表格视图 -->
             <div class="table-view" id="tableView" style="display: none;">
-                <table class="records-table">
-                    <thead>
-                        <tr>
-                            <th>填表时间 🔽</th>
-                            <th>填表人 🔽</th>
-                            <th>姓名 🔽</th>
-                            <th>手机</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>2025-06-18<br>21:36</td>
-                            <td>谢盛杨</td>
-                            <td>谢盛杨</td>
-                            <td>1760</td>
-                        </tr>
-                        <tr>
-                            <td>2025-04-24<br>17:08</td>
-                            <td>张远</td>
-                            <td>张远</td>
-                            <td>1515</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="table-container">
+                    <table class="records-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="time">填表时间 🔽</th>
+                                <th class="sortable" data-sort="submitter">填表人 🔽</th>
+                                <th class="sortable" data-sort="name">姓名 🔽</th>
+                                <th>手机</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 数据由JavaScript动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
                 <div class="no-more">没有更多了</div>
             </div>
 
@@ -176,7 +167,7 @@
                         </div>
                     </div>
                     <div class="qr-code-mini">
-                        <div class="qr-placeholder">二维码</div>
+                        <canvas id="printQRCode" width="60" height="60"></canvas>
                         <div class="qr-label">扫码查看</div>
                     </div>
                 </div>
@@ -222,6 +213,11 @@
     <!-- 提示消息 -->
     <div class="toast" id="toast"></div>
 
+    <!-- 导出功能依赖库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
