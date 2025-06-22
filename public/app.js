@@ -1202,71 +1202,133 @@ function exportToExcel() {
     showToast('Excel文件导出成功');
 }
 
-// 导出为PDF
+// 导出为PDF - New version using jsPDF and jsPDF-AutoTable
 function exportToPDF() {
-    const printView = document.getElementById('printView');
-    
-    if (!printView) {
-        showToast('打印视图不可用');
+    const records = window.allRecords || [];
+
+    if (records.length === 0) {
+        showToast('暂无数据可导出为PDF');
         return;
     }
-    
+
     showToast('正在生成PDF，请稍候...');
-    
-    // 临时显示打印视图以便截图
-    const originalDisplay = printView.style.display;
-    printView.style.display = 'block';
-    
-    html2canvas(printView, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
-    }).then(canvas => {
-        // 恢复原始显示状态
-        printView.style.display = originalDisplay;
-        
+
+    try {
         const { jsPDF } = window.jspdf;
+        // Check if autoTable plugin is available
+        if (typeof jsPDF.API.autoTable !== 'function') {
+            showToast('PDF导出功能初始化失败 (AutoTable missing)。请刷新页面或联系管理员。');
+            console.error('jsPDF-AutoTable plugin is not loaded.');
+            return;
+        }
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
             format: 'a4'
         });
-        
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        
-        let position = 0;
-        
-        // 添加首页
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-        
-        // 如果内容超过一页，添加额外页面
-        while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-        
-        // 生成文件名
+
+        // --- Document Setup ---
+        // It's good practice to ensure a font that supports Chinese characters is active.
+        // jsPDF's built-in fonts (Helvetica, Times) might not have full CJK support.
+        // For this example, we'll try a common approach, but production might need font embedding.
+        // pdf.setFont('SimSun'); // Example: Try to set a known CJK font if available in environment or jsPDF build
+        // If no specific CJK font is set, default fonts will be used. Characters might be missing.
+        // For this exercise, we'll assume basic font support and focus on structure.
+
+        const docTitle = "不良贷款听证会 - 签到记录";
+        const genDate = "生成日期: " + new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+        const pageMargin = 14; // mm
+
+        // --- Table Data Preparation ---
+        const head = [['序号', '姓名', '手机号', '签到时间', '位置信息', '签名']];
+        const body = records.sort((a, b) => new Date(a.signInTime) - new Date(b.signInTime)) // Sort by sign-in time
+                          .map((record, index) => [
+            index + 1,
+            record.name || '',
+            record.phone || '',
+            record.signInTime ? new Date(record.signInTime).toLocaleString('zh-CN', { hour12: false }) : '',
+            record.location && record.location.address ? record.location.address : (record.location ? '已定位,无详细地址' : '无位置信息'),
+            '' // Empty for signature column
+        ]);
+
+        // --- PDF Generation using autoTable ---
+        pdf.autoTable({
+            startY: pageMargin + 15, // Start table below header
+            head: head,
+            body: body,
+            theme: 'striped', // 'striped', 'grid', 'plain'
+            styles: {
+                fontSize: 9,
+                cellPadding: 1.5,
+                overflow: 'linebreak', // Handle text overflow by line breaking
+                // font: 'SimSun' // Try to apply CJK font to table
+            },
+            headStyles: {
+                fillColor: [41, 128, 185], // A nice blue
+                textColor: 255,
+                fontStyle: 'bold',
+                halign: 'center',
+                fontSize: 10,
+            },
+            columnStyles: {
+                0: { cellWidth: 12, halign: 'center' }, // 序号
+                1: { cellWidth: 25 }, // 姓名
+                2: { cellWidth: 30, halign: 'left' }, // 手机号
+                3: { cellWidth: 35, halign: 'left' }, // 签到时间
+                4: { cellWidth: 'auto' }, // 位置信息 (let it take remaining space and wrap)
+                5: { cellWidth: 20, cellPadding: 5 }  // 签名 (larger padding for manual signature later)
+            },
+            margin: { top: pageMargin + 15, right: pageMargin, bottom: pageMargin + 10, left: pageMargin },
+            didDrawPage: function (data) {
+                // --- Page Header ---
+                pdf.setFontSize(16);
+                pdf.setTextColor(40);
+                pdf.setFont(undefined, 'bold');
+                pdf.text(docTitle, pageMargin, pageMargin);
+
+                pdf.setFontSize(10);
+                pdf.setTextColor(80);
+                pdf.setFont(undefined, 'normal');
+                pdf.text(genDate, pageMargin, pageMargin + 7);
+
+                // --- Page Footer ---
+                const pageCount = pdf.internal.getNumberOfPages();
+                pdf.setFontSize(8);
+                pdf.setTextColor(100);
+                const footerText = `第 ${data.pageNumber} 页 / 共 ${pageCount} 页`;
+                // Calculate x position for right alignment
+                const footerTextWidth = pdf.getStringUnitWidth(footerText) * pdf.internal.getFontSize() / pdf.internal.scaleFactor;
+                const xPosFooter = pdf.internal.pageSize.width - pageMargin - footerTextWidth;
+                pdf.text(footerText, xPosFooter, pdf.internal.pageSize.height - (pageMargin / 2) - 2);
+
+                 // Add QR Code to footer of each page (optional)
+                const canvas = document.getElementById('printQRCode'); // Assuming this canvas is still updated by generatePrintQRCode()
+                if (canvas && canvas.toDataURL && canvas.width > 0 && canvas.height > 0) {
+                    try {
+                        const qrImgData = canvas.toDataURL('image/png');
+                        if (qrImgData.length > 'data:image/png;base64,'.length) { // Basic check for valid data URL
+                             pdf.addImage(qrImgData, 'PNG', pageMargin, pdf.internal.pageSize.height - (pageMargin / 2) - 7, 10, 10);
+                        }
+                    } catch (e) {
+                        console.warn("Could not add QR code to PDF page footer:", e);
+                    }
+                }
+            },
+            // Setting table width to be 100% of page width minus margins
+            tableWidth: 'auto', // 'auto' or a specific number or 'wrap'
+        });
+
+        // --- Filename and Save ---
         const now = new Date();
         const fileName = `不良贷款听证会签到_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}.pdf`;
         
-        // 下载PDF
         pdf.save(fileName);
         showToast('PDF文件导出成功');
-        
-    }).catch(error => {
-        // 恢复原始显示状态
-        printView.style.display = originalDisplay;
+
+    } catch (error) {
         console.error('PDF导出失败:', error);
-        showToast('PDF导出失败，请重试');
-    });
+        showToast('PDF导出失败: ' + error.message);
+    }
 }
 
 // 表格排序功能
